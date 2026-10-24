@@ -15,6 +15,10 @@ public class MangaConnectorId<T> : Identifiable where T : Identifiable
     [StringLength(256)] public string IdOnConnectorSite { get; init; }
     [Url] [StringLength(512)] public string? WebsiteUrl { get; internal init; }
     public bool UseForDownload { get; internal set; }
+    /// <summary>
+    /// Language of the content on this connector (e.g. "en"), set for chapters when they are retrieved.
+    /// </summary>
+    [StringLength(8)] public string? Language { get; internal set; }
 
     public MangaConnectorId(T obj, string mangaConnectorName, string idOnConnectorSite, string? websiteUrl,
         bool useForDownload = false)

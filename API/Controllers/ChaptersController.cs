@@ -60,7 +60,7 @@ public class ChaptersController(MangaContext context) : ControllerBase
             .ToType(c =>
             {
                 IEnumerable<DTOs.MangaConnectorId<Chapter>> ids = c.MangaConnectorIds.Select(id =>
-                    new DTOs.MangaConnectorId<Chapter>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
+                    new DTOs.MangaConnectorId<Chapter>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload) { Language = id.Language });
                 return new Chapter(c.Key, c.ParentMangaId, c.VolumeNumber, c.ChapterNumber, c.Title, ids, c.Downloaded,
                     c.FileName);
             });
@@ -92,7 +92,7 @@ public class ChaptersController(MangaContext context) : ControllerBase
             return TypedResults.NoContent();
             
         IEnumerable<DTOs.MangaConnectorId<Chapter>> ids = c.MangaConnectorIds.Select(id =>
-            new DTOs.MangaConnectorId<Chapter>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
+            new DTOs.MangaConnectorId<Chapter>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload) { Language = id.Language });
         return TypedResults.Ok(new Chapter(c.Key, c.ParentMangaId, c.VolumeNumber, c.ChapterNumber, c.Title, ids, c.Downloaded, c.FileName));
     }
     
@@ -124,7 +124,7 @@ public class ChaptersController(MangaContext context) : ControllerBase
             return TypedResults.NoContent();
             
         IEnumerable<DTOs.MangaConnectorId<Chapter>> ids = c.MangaConnectorIds.Select(id =>
-            new DTOs.MangaConnectorId<Chapter>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
+            new DTOs.MangaConnectorId<Chapter>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload) { Language = id.Language });
         return TypedResults.Ok(new Chapter(c.Key, c.ParentMangaId, c.VolumeNumber, c.ChapterNumber, c.Title, ids, c.Downloaded, c.FileName));
     }
 
@@ -167,7 +167,7 @@ public class ChaptersController(MangaContext context) : ControllerBase
             return TypedResults.NotFound(nameof(ChapterId));
         
         IEnumerable<DTOs.MangaConnectorId<Chapter>> ids = chapter.MangaConnectorIds.Select(id =>
-            new DTOs.MangaConnectorId<Chapter>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
+            new DTOs.MangaConnectorId<Chapter>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload) { Language = id.Language });
         return TypedResults.Ok(new Chapter(chapter.Key, chapter.ParentMangaId, chapter.VolumeNumber, chapter.ChapterNumber, chapter.Title,ids, chapter.Downloaded, chapter.FileName));
     }
     

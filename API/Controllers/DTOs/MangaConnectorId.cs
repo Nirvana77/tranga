@@ -36,6 +36,9 @@ public sealed record MangaConnectorId<T>(string Key, string MangaConnectorName, 
     [Description("Whether this Link is used for downloads")]
     public bool UseForDownload { get; init; } = UseForDownload;
 
+    [Description("Language of this item on the Connector (chapters only), e.g. \"en\"")]
+    public string? Language { get; init; }
+
     [Required]
     [Description("Languages the Connector provides (e.g. [\"it\"] for Mangaworld)")]
     public string[] Languages { get; init; } = Tranga.TryGetMangaConnector(MangaConnectorName, out API.MangaConnectors.MangaConnector? connector)

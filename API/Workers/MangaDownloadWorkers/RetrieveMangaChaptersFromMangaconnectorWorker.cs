@@ -74,6 +74,15 @@ public class RetrieveMangaChaptersFromMangaconnectorWorker(MangaConnectorId<Mang
         // Match tracked entities of Chapters
         foreach (MangaConnectorId<Chapter> newId in newIds)
             newId.Obj = manga.Chapters.First(ch => ch.Key == newId.ObjId);
+
+        // Single-language connectors only have that language; the others (MangaDex) return chapters in the requested one.
+        // Also fills in chapters retrieved before the language was recorded.
+        string chapterLanguage = mangaConnector.SupportedLanguages.Length == 1
+            ? mangaConnector.SupportedLanguages[0]
+            : language;
+        foreach (MangaConnectorId<Chapter> chapterId in newIds.Concat(existingChapterIds
+                     .Where(id => id.MangaConnectorName == mangaConnector.Name && id.Language is null)))
+            chapterId.Language = chapterLanguage;
         Log.DebugFormat("Got {0} new download-Ids.", newIds.Count);
         
         // Add new ChapterIds to Database

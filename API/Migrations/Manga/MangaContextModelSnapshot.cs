@@ -192,6 +192,10 @@ namespace API.Migrations.Manga
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("Language")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
                     b.Property<string>("MangaConnectorName")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -226,6 +230,10 @@ namespace API.Migrations.Manga
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Language")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
 
                     b.Property<string>("MangaConnectorName")
                         .IsRequired()

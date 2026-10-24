@@ -3866,6 +3866,11 @@
             "type": "boolean",
             "description": "Whether this Link is used for downloads"
           },
+          "language": {
+            "type": "string",
+            "description": "Language of this item on the Connector (chapters only), e.g. \"en\"",
+            "nullable": true
+          },
           "languages": {
             "type": "array",
             "items": {
@@ -4391,6 +4396,11 @@
           "useForDownload": {
             "type": "boolean",
             "description": "Whether this Link is used for downloads"
+          },
+          "language": {
+            "type": "string",
+            "description": "Language of this item on the Connector (chapters only), e.g. \"en\"",
+            "nullable": true
           },
           "languages": {
             "type": "array",
