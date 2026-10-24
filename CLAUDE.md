@@ -6,9 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Tranga is a single ASP.NET Core process (`API/`) that is both a REST API and a background worker host. It scrapes manga sites ("MangaConnectors"), downloads chapters as `.cbz` archives (optional ComicInfo.xml, jpeg compression / greyscale), fetches metadata (MyAnimeList via Jikan), triggers Komga/Kavita library scans, and sends notifications (Gotify, Ntfy, Pushover, generic webhooks). There is no frontend in this repo (see tranga-website).
 
+## Branches
+
+This checkout is the fork Nirvana77/tranga. `main` mirrors upstream C9Glax/tranga and must stay free of our own commits. All our work goes on `develop`, the fork's default branch. The fork's GitHub workflow `.github/workflows/sync-develop.yml` merges `main` into `develop` after every push to `main`. A daily CronJob in the k8s repo (`k8s/Tranga/prod/50-fork-sync.yaml`) fast-forwards `main` from upstream. Deploying to the cluster: `k8s/Tranga/build.sh` (builds `develop` by default).
+
 ## Commands
 
-Requires the **.NET 10 SDK** (`API` and `Tests` target `net10.0`).
+Requires the **.NET 10 SDK** (`API` and `Tests` target `net10.0`). With a local SDK:
 
 ```sh
 dotnet build Tranga.sln
@@ -22,6 +26,66 @@ Running locally: start Postgres with `docker compose -f docker-compose.local.yam
 
 Building regenerates `API/openapi/API_v2.json` (`OpenApiGenerateDocumentsOnBuild`); commit it when endpoints change.
 
+### Docker-only workflow (the dev machine has no .NET 10 SDK)
+
+The host only has the .NET 8 SDK, and the user wants the toolchain kept in Docker rather than installed. Run every `dotnet` command in `mcr.microsoft.com/dotnet/sdk:10.0` like this:
+
+```sh
+dn() {  # usage: dn <dotnet args...>   (run from the repo root)
+  docker run --rm --network host -u "$(id -u):$(id -g)" \
+    -e HOME=/home/dev -e DOTNET_CLI_TELEMETRY_OPTOUT=1 -e DOTNET_NOLOGO=1 \
+    -e PATH=/usr/share/dotnet:/usr/bin:/bin:/home/dev/.dotnet/tools \
+    -v ~/.cache/tranga-dotnet:/home/dev -v "$PWD":/src -v "${TRANGA_SETTINGS:-$HOME/.cache/tranga-settings}":/usr/share/tranga-api \
+    ${DN_ENV:-} -w "${DN_WORKDIR:-/src}" mcr.microsoft.com/dotnet/sdk:10.0 "$@"
+}
+mkdir -p ~/.cache/tranga-dotnet ~/.cache/tranga-settings
+dn dotnet build Tranga.sln
+dn dotnet test Tests/Tests.csproj -p:OpenApiGenerateDocumentsOnBuild=false
+dn sh -c 'dotnet tool list -g | grep -q dotnet-ef || dotnet tool install -g dotnet-ef --version 10.0.10; sh ./CreateMigrations.sh <Name>'
+```
+
+What each part is for:
+- **Your user, not root:** `bin/`, `obj/` and migration files stay owned by the user.
+- **`~/.cache/tranga-dotnet` as HOME:** keeps the NuGet cache and the `dotnet-ef` tool between runs.
+- **Mount the repo at `/src`, always:** `obj/project.assets.json` records absolute paths, so mixing mount points forces restores and breaks builds.
+- **Settings mount at `/usr/share/tranga-api`:** `TrangaSettings` hard-codes that directory on Linux and writes `settings.json` there on first use. Anything that touches `Tranga.*` (EF design-time, connector tests) fails without a writable directory there. It reads `FLARESOLVERR_URL` only when it first creates `settings.json`, so use a fresh directory when that value changes.
+- **`--network host`:** lets the container reach a local FlareSolverr or Postgres on `127.0.0.1`.
+
+Known noise:
+- Every build prints an EF error that it can't connect to `tranga-pg:5432`. That's the OpenAPI document generation starting the app; the build still succeeds.
+- A build on Linux rewrites `API/openapi/API_v2.json` with `\n` instead of upstream's `\r\n`. Run `git checkout API/openapi/API_v2.json` before committing unless endpoints changed.
+
+#### Testing a connector against the live site
+
+There are no automated connector tests. To exercise one, write a throwaway console project in the scratchpad (never in the repo) that references the API project, then run it with `dn` and `DN_WORKDIR` pointing at it:
+
+```xml
+<!-- <scratch>/e2e/e2e.csproj -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <OpenApiGenerateDocumentsOnBuild>false</OpenApiGenerateDocumentsOnBuild>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="/src/API/API.csproj" /></ItemGroup>
+</Project>
+```
+
+`Program.cs` creates the connector (`new Manhuaus()`) and calls `SearchManga`, `GetMangaFromUrl`, `GetChapters` and `DownloadImage`. `GetChapterImageUrls` is `internal` and there is no `InternalsVisibleTo`, so call it through reflection. To see connector logs, call `log4net.Config.BasicConfigurator.Configure()` and set the root level to `Warn`. Run:
+
+```sh
+DN_ENV="-v <scratch>/e2e:/e2e -e FLARESOLVERR_URL=http://127.0.0.1:18191" DN_WORKDIR=/e2e \
+  TRANGA_SETTINGS=<scratch>/e2e-settings dn dotnet run
+```
+
+For Cloudflare-protected sites, start a local FlareSolverr first. Leave it running while you work and stop it with `docker stop fs-test` when done:
+
+```sh
+docker run -d --rm --name fs-test -p 127.0.0.1:18191:8191 ghcr.io/flaresolverr/flaresolverr:latest
+```
+
+To check whether a site is challenged: `curl -A "<browser UA>" -o /dev/null -w '%{http_code}' <url>` returns 403 with `cf-mitigated`/`server: cloudflare` headers. You can also POST `{"cmd":"request.get","url":"<url>"}` to `http://127.0.0.1:18191/v1` and inspect `solution.response`, `solution.cookies` and `solution.userAgent`.
+
 ### Migrations
 
 Code-first EF Core with **four separate DbContexts sharing one Postgres DB**, each with its own migration folder. Migrations are applied automatically at startup in `Program.cs`. When changing any schema, create the migration for all four contexts with the same name:
@@ -30,13 +94,19 @@ Code-first EF Core with **four separate DbContexts sharing one Postgres DB**, ea
 ./CreateMigrations.sh <MigrationName>   # runs `dotnet ef migrations add` for Manga, Library, Notifications, Actions
 ```
 
+Upstream's `.gitignore` has an unanchored `Manga/` rule (meant for the download folder) that also ignores `API/Migrations/Manga/`. On `develop` it is anchored as `/Manga/`. If an upstream merge brings the unanchored rule back, new Manga migrations silently drop out of commits. After creating a migration, check `git status` shows all four `*_<Name>.cs` files.
+
 ## Architecture
 
 - **`Program.cs`**: DI setup, API versioning (everything is v2, routes are `v{v:apiVersion}/[controller]`), Swagger, CORS (`TRANGA_CORS__ALLOWED_ORIGIN`, `TRANGA_SWAGGER__ENABLED` read via `RuntimeConfiguration`), SignalR hub `DownloadProgressHub` at `/hubs/download-progress`, migrations, then hands off to `Tranga`.
 - **`Tranga.cs`**: a static class that holds global state and the worker scheduler: the registered `MangaConnectors` and `MetadataFetchers` arrays, `TrangaSettings`, the singleton periodic workers, and `AddWorker`/`StartWorker`/`StopWorker`. `Tranga.ServiceProvider` is set from `Program.cs` so workers can create DI scopes.
 - **Schema / DbContexts** (`Schema/`): `MangaContext` (manga, chapters, authors, tags, connector ids, file libraries, metadata), `LibraryContext` (Komga/Kavita connectors), `NotificationsContext`, `ActionsContext` (audit log of `ActionRecord` subtypes). All inherit `TrangaBaseContext<T>`; save via `context.Sync(token, reason: "...")`, which returns `(success, exceptionMessage)` rather than throwing. `DB-Layout.png` shows the schema.
 - **Workers** (`Workers/`): subclass `BaseWorker` and implement `DoWorkInternal()`, which returns *follow-up workers* that the scheduler enqueues (e.g. retrieve chapters → download chapter workers). Workers can declare `dependsOn`. Workers that need a DB subclass `BaseWorkerWithContexts` and grab contexts in `SetContexts(IServiceScope)`; each run gets a fresh scope. Periodic workers implement `IPeriodic` (`Interval`) and are re-scheduled after each run unless they failed. Concurrency is capped by `TrangaSettings.MaxConcurrentWorkers`, and each run has a timeout (`WORKER_TIMEOUT`). Download progress is pushed to SignalR via `DownloadProgressReporter`.
-- **MangaConnectors** (`MangaConnectors/`): one class per site, inheriting `MangaConnector` (search, get manga by URL/id, get chapters, get chapter image URLs). Each connector picks an `IDownloadClient` (`MangaDownloadClients/`: `HttpDownloadClient`, `FlareSolverrDownloadClient`, `ChromiumDownloadClient` via PuppeteerSharp), all going through the shared `RateLimitHandler`. `Global` is a meta-connector that fans out searches to all enabled connectors. Connectors are persisted in `MangaContext` with `Name` as the EF discriminator.
+- **MangaConnectors** (`MangaConnectors/`): one class per site, inheriting `MangaConnector` (search, get manga by URL/id, get chapters, get chapter image URLs). Each connector picks an `IDownloadClient` from `MangaDownloadClients/`, all going through the shared `RateLimitHandler`:
+  - `HttpDownloadClient` falls back to FlareSolverr on a Cloudflare 403. That fallback returns HTML as text, so it breaks images.
+  - `FlareSolverrClearanceDownloadClient` solves the challenge once per site, then sends plain requests with the `cf_clearance` cookie and FlareSolverr's user agent, so images work too. It needs `FLARESOLVERR_URL`. Use it for sites that challenge everything (e.g. Manhuaus).
+  - `FlareSolverrDownloadClient` sends every request through FlareSolverr.
+  - `ChromiumDownloadClient` uses PuppeteerSharp. `Global` is a meta-connector that fans out searches to all enabled connectors. Connectors are persisted in `MangaContext` with `Name` as the EF discriminator.
 - **Controllers** (`Controllers/`): return DTOs from `Controllers/DTOs` and take request records from `Controllers/Requests`; they don't expose EF entities directly.
 - **Config**: env vars are read in `Constants.cs` (see the README table). User-editable settings live in `TrangaSettings` and are persisted as JSON at `/usr/share/tranga-api/settings.json` on Linux (`%appdata%/tranga-api` on Windows), alongside the cover image cache and logs (log4net, `Log4Net.config.xml`).
 

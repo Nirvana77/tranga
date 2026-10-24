@@ -16,7 +16,7 @@ namespace API.Migrations.Manga
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.11")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -356,6 +356,20 @@ namespace API.Migrations.Manga
                     b.HasBaseType("API.MangaConnectors.MangaConnector");
 
                     b.HasDiscriminator().HasValue("Mangaworld");
+                });
+
+            modelBuilder.Entity("API.MangaConnectors.Manhuaus", b =>
+                {
+                    b.HasBaseType("API.MangaConnectors.MangaConnector");
+
+                    b.HasDiscriminator().HasValue("Manhuaus");
+                });
+
+            modelBuilder.Entity("API.MangaConnectors.WeebCentral", b =>
+                {
+                    b.HasBaseType("API.MangaConnectors.MangaConnector");
+
+                    b.HasDiscriminator().HasValue("WeebCentral");
                 });
 
             modelBuilder.Entity("API.Schema.MangaContext.MetadataFetchers.MyAnimeList", b =>
