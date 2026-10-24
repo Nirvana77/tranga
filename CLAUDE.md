@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Tranga is a single ASP.NET Core process (`API/`) that is both a REST API and a background worker host. It scrapes manga sites ("MangaConnectors"), downloads chapters as `.cbz` archives (optional ComicInfo.xml, jpeg compression / greyscale), fetches metadata (MyAnimeList via Jikan), triggers Komga/Kavita library scans, and sends notifications (Gotify, Ntfy, Pushover, generic webhooks). There is no frontend in this repo (see tranga-website).
+Tranga is a single ASP.NET Core process (`API/`) that is both a REST API and a background worker host. It scrapes manga sites ("MangaConnectors"), downloads chapters as `.cbz` archives (optional ComicInfo.xml, jpeg compression / greyscale), fetches metadata (MyAnimeList via Jikan), triggers Komga/Kavita library scans, and sends notifications (Gotify, Ntfy, Pushover, generic webhooks). There is no frontend in this repo. The UI is the fork Nirvana77/tranga-website (`/mnt/Data/git/tranga-website`, branch `develop`, Nuxt/Vue). It generates its API client from `API/openapi/API_v2.json` on this repo's `develop` branch (raw GitHub URL in `website/nuxt.config.ts`). So a new DTO field reaches the UI only after it's pushed here, and the website is rebuilt after that: `k8s/Tranga/build.sh --website`.
 
 ## Branches
 
