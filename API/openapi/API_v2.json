@@ -4729,8 +4729,10 @@
         "required": [
           "dependencies",
           "dependenciesFulfilled",
+          "description",
           "key",
           "missingDependencies",
+          "periodic",
           "state"
         ],
         "type": "object",
@@ -4778,6 +4780,15 @@
             "type": "string",
             "description": "Human-readable progress description.",
             "nullable": true
+          },
+          "description": {
+            "minLength": 1,
+            "type": "string",
+            "description": "What the worker does, e.g. \"Download Frozen Warrior Ch.12 from Manhuaus\"."
+          },
+          "periodic": {
+            "type": "boolean",
+            "description": "Whether the worker runs on a schedule. Periodic workers stay listed between runs."
           },
           "key": {
             "maxLength": 64,

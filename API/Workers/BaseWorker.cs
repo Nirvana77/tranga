@@ -29,6 +29,15 @@ public abstract class BaseWorker : Identifiable
     public int CurrentStep { get; internal set; }
     public int TotalSteps { get; internal set; }
     public string? ProgressDescription { get; internal set; }
+    /// <summary>
+    /// What the worker does, for people (e.g. the website's status bar). Defaults to the type name in words.
+    /// </summary>
+    public virtual string Description => System.Text.RegularExpressions.Regex.Replace(
+            GetType().Name.EndsWith("Worker") ? GetType().Name[..^"Worker".Length] : GetType().Name,
+            "(?<=[a-z])(?=[A-Z])", " ")
+        .ToLowerInvariant() is { Length: > 0 } words
+            ? char.ToUpperInvariant(words[0]) + words[1..]
+            : GetType().Name;
     private CancellationTokenSource _cancellationTokenSource = new ();
     protected CancellationToken CancellationToken => _cancellationTokenSource.Token;
     protected ILog Log { get; init; }

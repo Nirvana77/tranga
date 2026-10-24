@@ -27,6 +27,11 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
     : BaseWorkerWithContexts(dependsOn)
 {
     public readonly string ChapterIdId = chId.Key;
+    private string _description = DescribeChapter(chId);
+    public override string Description => _description;
+
+    private static string DescribeChapter(MangaConnectorId<Chapter> chId) =>
+        $"Download {chId.Obj?.ParentManga?.Name ?? "chapter"} Ch.{chId.Obj?.ChapterNumber ?? "?"} from {chId.MangaConnectorName}";
 
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     private MangaContext MangaContext = null!;
@@ -74,6 +79,7 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
         Log.Debug($"Downloading chapter for MangaConnectorId {mangaConnectorId}...");
         
         Chapter chapter = mangaConnectorId.Obj;
+        _description = DescribeChapter(mangaConnectorId);
         if (chapter.ParentManga.LibraryId is null)
         {
             Log.Info($"Library is not set for {chapter.ParentManga} {chapter}");

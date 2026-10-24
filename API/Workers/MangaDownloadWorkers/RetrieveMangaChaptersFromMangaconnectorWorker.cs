@@ -17,6 +17,11 @@ public class RetrieveMangaChaptersFromMangaconnectorWorker(MangaConnectorId<Mang
     : BaseWorkerWithContexts(dependsOn)
 {
     private readonly string _mangaConnectorIdId = mcId.Key;
+    private string _description = Describe(mcId);
+    public override string Description => _description;
+
+    private static string Describe(MangaConnectorId<Manga> mcId) =>
+        $"Get chapters of {mcId.Obj?.Name ?? "manga"} from {mcId.MangaConnectorName}";
 
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     private MangaContext MangaContext = null!;
@@ -42,6 +47,7 @@ public class RetrieveMangaChaptersFromMangaconnectorWorker(MangaConnectorId<Mang
             Log.Error("Could not get MangaConnectorId.");
             return []; //TODO Exception?
         }
+        _description = Describe(mangaConnectorId);
         if (!Tranga.TryGetMangaConnector(mangaConnectorId.MangaConnectorName, out MangaConnector? mangaConnector))
         {
             Log.Error("Could not get MangaConnector.");

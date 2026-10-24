@@ -60,4 +60,18 @@ public record Worker(string Key, IEnumerable<string> Dependencies, IEnumerable<s
     /// </summary>
     [Description("Human-readable progress description.")]
     public string? ProgressDescription { get; init; } = ProgressDescription;
+
+    /// <summary>
+    /// What the worker does, e.g. "Download Frozen Warrior Ch.12 from Manhuaus".
+    /// </summary>
+    [Required]
+    [Description("What the worker does, e.g. \"Download Frozen Warrior Ch.12 from Manhuaus\".")]
+    public string Description { get; init; } = "";
+
+    /// <summary>
+    /// Whether the worker runs on a schedule. Periodic workers stay listed between runs.
+    /// </summary>
+    [Required]
+    [Description("Whether the worker runs on a schedule. Periodic workers stay listed between runs.")]
+    public bool Periodic { get; init; }
 }

@@ -88,5 +88,9 @@ public class WorkerController : ControllerBase
         w.TotalSteps > 0 ? w.CurrentStep : null,
         w.TotalSteps > 0 ? w.TotalSteps : null,
         w.ProgressDescription
-    );
+    )
+    {
+        Description = w.Description,
+        Periodic = w is IPeriodic
+    };
 }
