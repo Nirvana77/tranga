@@ -5,7 +5,7 @@ using Newtonsoft.Json.Converters;
 
 namespace API;
 
-public struct TrangaSettings
+public class TrangaSettings
 {
     [JsonIgnore] public static int Port => int.Parse(Environment.GetEnvironmentVariable("PORT") ?? "6531");
     [JsonIgnore] public static bool Debug => bool.Parse(Environment.GetEnvironmentVariable("DEBUG") ?? "false");
@@ -59,7 +59,8 @@ public struct TrangaSettings
     {
         if (!File.Exists(SettingsFilePath))
             new TrangaSettings().Save();
-        return JsonConvert.DeserializeObject<TrangaSettings>(File.ReadAllText(SettingsFilePath), new StringEnumConverter());
+        return JsonConvert.DeserializeObject<TrangaSettings>(File.ReadAllText(SettingsFilePath), new StringEnumConverter())
+            ?? new TrangaSettings();
     }
 
     public void Save()

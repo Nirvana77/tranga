@@ -307,7 +307,8 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
         if (await context.Mangas.FirstOrDefaultAsync(m => m.Key == MangaId, HttpContext.RequestAborted) is not { } manga)
             return TypedResults.NotFound(nameof(MangaId));
 
-        return new SearchController(context).SearchManga(MangaConnectorName, manga.Name);
+        // SearchManga reads HttpContext, which a controller created with new() lacks.
+        return new SearchController(context) { ControllerContext = ControllerContext }.SearchManga(MangaConnectorName, manga.Name);
     }
     
     /// <summary>
