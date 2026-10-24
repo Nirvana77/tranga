@@ -46,6 +46,12 @@ public class TrangaSettings
 
     public int MaxConcurrentWorkers { get; set; } = Math.Max(Environment.ProcessorCount, 4); // Minimum of 4 Tasks, maximum of 1 per Core
 
+    /// <summary>
+    /// Which kinds of work start first when all worker slots are busy, most important first.
+    /// </summary>
+    // An array, not a list: Json.NET would append to a default list instead of replacing it.
+    public WorkerCategory[] TaskPriority { get; set; } = Enum.GetValues<WorkerCategory>();
+
     public LibraryRefreshSetting LibraryRefreshSetting { get; set; } = LibraryRefreshSetting.AfterMangaFinished;
 
     public int RefreshLibraryWhileDownloadingEveryMinutes { get; set; } = 10;
@@ -115,6 +121,23 @@ public class TrangaSettings
         this.MaxConcurrentWorkers = value;
         Save();
     }
+
+    /// <summary>
+    /// Sets <see cref="TaskPriority"/>. Categories left out keep their order after the given ones.
+    /// </summary>
+    public void SetTaskPriority(IEnumerable<WorkerCategory> order)
+    {
+        this.TaskPriority = order.Concat(Enum.GetValues<WorkerCategory>()).Distinct().ToArray();
+        Save();
+    }
+
+    /// <summary>
+    /// Position of <paramref name="category"/> in <see cref="TaskPriority"/>; lower starts first.
+    /// </summary>
+    public int TaskPriorityRank(WorkerCategory category) =>
+        Array.IndexOf(TaskPriority, category) is var index and >= 0
+            ? index
+            : TaskPriority.Length;
 
     public void SetLibraryRefreshSetting(LibraryRefreshSetting setting)
     {

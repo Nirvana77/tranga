@@ -36,4 +36,11 @@ public record MinimalManga(string Key, string Name, string Description, MangaRel
     [Required]
     [Description("Ids of the Manga on MangaConnectors")]
     public IEnumerable<MangaConnectorId<Manga>> MangaConnectorIds { get; init; } = MangaConnectorIds;
+
+    /// <summary>
+    /// Download priority. Chapters of higher-priority manga are downloaded first.
+    /// </summary>
+    [Required]
+    [Description("Download priority. Chapters of higher-priority manga are downloaded first.")]
+    public API.Schema.MangaContext.MangaPriority Priority { get; init; } = API.Schema.MangaContext.MangaPriority.Normal;
 }

@@ -46,7 +46,7 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
         return TypedResults.Ok(result.Select(m =>
         {
             IEnumerable<DTOs.MangaConnectorId<Manga>> ids = m.MangaConnectorIds.Select(id => new DTOs.MangaConnectorId<Manga>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
-            return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids);
+            return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids) { Priority = m.Priority };
         }).ToList());
     }
     
@@ -70,7 +70,7 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
         return TypedResults.Ok(result.Select(m =>
         {
             IEnumerable<DTOs.MangaConnectorId<Manga>> ids = m.MangaConnectorIds.Select(id => new DTOs.MangaConnectorId<Manga>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
-            return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids);
+            return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids) { Priority = m.Priority };
         }).ToList());
     }
 
@@ -93,7 +93,7 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
         IEnumerable<string> tags = manga.MangaTags.Select(t => t.Tag);
         IEnumerable<Link> links = manga.Links.Select(l => new Link(l.Key, l.LinkProvider, l.LinkUrl));
         IEnumerable<AltTitle> altTitles = manga.AltTitles.Select(a => new AltTitle(a.Language, a.Title));
-        Manga result = new (manga.Key, manga.Name, manga.Description, manga.ReleaseStatus, ids, manga.IgnoreChaptersBefore, manga.Year, manga.OriginalLanguage, authors, tags, links, altTitles, manga.LibraryId);
+        Manga result = new (manga.Key, manga.Name, manga.Description, manga.ReleaseStatus, ids, manga.IgnoreChaptersBefore, manga.Year, manga.OriginalLanguage, authors, tags, links, altTitles, manga.LibraryId) { Priority = manga.Priority };
         
         return TypedResults.Ok(result);
     }
@@ -232,6 +232,29 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
     }
 
     /// <summary>
+    /// Sets the download priority of <see cref="Manga"/> with <paramref name="MangaId"/>. Chapters of higher-priority manga are downloaded first.
+    /// </summary>
+    /// <param name="MangaId"><see cref="Manga"/>.Key</param>
+    /// <param name="Priority">Low, Normal or High</param>
+    /// <response code="200"></response>
+    /// <response code="404"><see cref="Manga"/> with <paramref name="MangaId"/> not found</response>
+    /// <response code="500">Error during Database Operation</response>
+    [HttpPatch("{MangaId}/Priority/{Priority}")]
+    [ProducesResponseType(Status200OK)]
+    [ProducesResponseType<string>(Status404NotFound, "text/plain")]
+    [ProducesResponseType<string>(Status500InternalServerError, "text/plain")]
+    public async Task<Results<Ok, NotFound<string>, InternalServerError<string>>> SetPriority(string MangaId, MangaPriority Priority)
+    {
+        if (await context.Mangas.FirstOrDefaultAsync(m => m.Key == MangaId, HttpContext.RequestAborted) is not { } manga)
+            return TypedResults.NotFound(nameof(MangaId));
+
+        manga.Priority = Priority;
+        if (await context.Sync(HttpContext.RequestAborted, GetType(), "Set priority") is { success: false } result)
+            return TypedResults.InternalServerError(result.exceptionMessage);
+        return TypedResults.Ok();
+    }
+
+    /// <summary>
     /// (Un-)Marks <see cref="Manga"/> as requested for Download from <see cref="API.MangaConnectors.MangaConnector"/>
     /// </summary>
     /// <param name="MangaId"><see cref="Manga"/> with <paramref name="MangaId"/></param>
@@ -339,7 +362,7 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
             IEnumerable<string> tags = m.MangaTags.Select(t => t.Tag);
             IEnumerable<Link> links = m.Links.Select(l => new Link(l.Key, l.LinkProvider, l.LinkUrl));
             IEnumerable<AltTitle> altTitles = m.AltTitles.Select(a => new AltTitle(a.Language, a.Title));
-            return new Manga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids, m.IgnoreChaptersBefore, m.Year, m.OriginalLanguage, authors, tags, links, altTitles, m.LibraryId);
+            return new Manga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids, m.IgnoreChaptersBefore, m.Year, m.OriginalLanguage, authors, tags, links, altTitles, m.LibraryId) { Priority = m.Priority };
         }).ToList());
     }
     
@@ -367,7 +390,7 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
         return TypedResults.Ok(result.Select(m =>
         {
             IEnumerable<DTOs.MangaConnectorId<Manga>> ids = m.MangaConnectorIds.Select(id => new DTOs.MangaConnectorId<Manga>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
-            return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids);
+            return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids) { Priority = m.Priority };
         }).ToList());
     }
 

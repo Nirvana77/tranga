@@ -16,9 +16,12 @@ namespace API.Workers.MangaDownloadWorkers;
 public class RetrieveMangaChaptersFromMangaconnectorWorker(MangaConnectorId<Manga> mcId, string language, IEnumerable<BaseWorker>? dependsOn = null)
     : BaseWorkerWithContexts(dependsOn)
 {
+    public override WorkerCategory Category => WorkerCategory.ChapterChecks;
     private readonly string _mangaConnectorIdId = mcId.Key;
     private string _description = Describe(mcId);
     public override string Description => _description;
+    private MangaPriority _mangaPriority = mcId.Obj?.Priority ?? MangaPriority.Normal;
+    public override MangaPriority MangaPriority => _mangaPriority;
 
     private static string Describe(MangaConnectorId<Manga> mcId) =>
         $"Get chapters of {mcId.Obj?.Name ?? "manga"} from {mcId.MangaConnectorName}";
@@ -48,6 +51,7 @@ public class RetrieveMangaChaptersFromMangaconnectorWorker(MangaConnectorId<Mang
             return []; //TODO Exception?
         }
         _description = Describe(mangaConnectorId);
+        _mangaPriority = mangaConnectorId.Obj.Priority;
         if (!Tranga.TryGetMangaConnector(mangaConnectorId.MangaConnectorName, out MangaConnector? mangaConnector))
         {
             Log.Error("Could not get MangaConnector.");

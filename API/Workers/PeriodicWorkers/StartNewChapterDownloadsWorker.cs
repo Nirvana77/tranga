@@ -11,6 +11,7 @@ namespace API.Workers.PeriodicWorkers;
 public class StartNewChapterDownloadsWorker(TimeSpan? interval = null, IEnumerable<BaseWorker>? dependsOn = null)
     : BaseWorkerWithContexts(dependsOn), IPeriodic
 {
+    public override WorkerCategory Category => WorkerCategory.Downloads;
 
     public DateTime LastExecution { get; set; } = DateTime.UnixEpoch;
     public TimeSpan Interval { get; set; } = interval ?? TimeSpan.FromMinutes(1);
@@ -43,7 +44,11 @@ public class StartNewChapterDownloadsWorker(TimeSpan? interval = null, IEnumerab
         int amountNewWorkers = Math.Min(Tranga.Settings.MaxConcurrentDownloads, Tranga.Settings.MaxConcurrentDownloads - downloadWorkers);
         
         Log.DebugFormat("{0} running download Workers. {1} available new download Workers.", downloadWorkers, amountNewWorkers);
-        IEnumerable<MangaConnectorId<Chapter>> newDownloadChapters = missingChapters.OrderBy(ch => ch.Obj, new Chapter.ChapterComparer()).Take(amountNewWorkers);
+        // Higher-priority manga first, then in chapter order
+        IEnumerable<MangaConnectorId<Chapter>> newDownloadChapters = missingChapters
+            .OrderByDescending(ch => ch.Obj.ParentManga.Priority)
+            .ThenBy(ch => ch.Obj, new Chapter.ChapterComparer())
+            .Take(amountNewWorkers);
 
         // Create new jobs
         List<BaseWorker> newWorkers = newDownloadChapters.Select(mcId => new DownloadChapterFromMangaconnectorWorker(mcId)).ToList<BaseWorker>();
@@ -53,6 +58,7 @@ public class StartNewChapterDownloadsWorker(TimeSpan? interval = null, IEnumerab
     
     internal static async Task<List<MangaConnectorId<Chapter>>> GetMissingChapters(MangaContext ctx, CancellationToken cancellationToken) => await ctx.MangaConnectorToChapter
         .Include(id => id.Obj)
+        .ThenInclude(ch => ch.ParentManga)
         .Where(id => !id.Obj.Downloaded && id.UseForDownload)
         .ToListAsync(cancellationToken);
 }

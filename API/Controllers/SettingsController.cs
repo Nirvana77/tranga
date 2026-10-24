@@ -1,5 +1,6 @@
 ﻿using API.Controllers.Requests;
 using API.MangaDownloadClients;
+using API.Workers;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -228,6 +229,54 @@ public class SettingsController() : ControllerBase
         return TypedResults.Ok();
     }
     
+
+    /// <summary>
+    /// Sets how many workers (downloads, chapter checks, covers…) may run at the same time
+    /// </summary>
+    /// <param name="Amount">1 to 64</param>
+    /// <response code="200"></response>
+    /// <response code="400"><paramref name="Amount"/> is out of range</response>
+    [HttpPatch("MaxConcurrentWorkers/{Amount}")]
+    [ProducesResponseType(Status200OK)]
+    [ProducesResponseType(Status400BadRequest)]
+    public Results<Ok, BadRequest> SetMaxConcurrentWorkers(int Amount)
+    {
+        if (Amount is < 1 or > 64)
+            return TypedResults.BadRequest();
+        Tranga.Settings.SetMaxConcurrentWorkers(Amount);
+        Tranga.DispatchWorkers();
+        return TypedResults.Ok();
+    }
+
+    /// <summary>
+    /// Sets how many chapters may download at the same time. Downloads also take worker slots (<see cref="TrangaSettings.MaxConcurrentWorkers"/>).
+    /// </summary>
+    /// <param name="Amount">1 to 64</param>
+    /// <response code="200"></response>
+    /// <response code="400"><paramref name="Amount"/> is out of range</response>
+    [HttpPatch("MaxConcurrentDownloads/{Amount}")]
+    [ProducesResponseType(Status200OK)]
+    [ProducesResponseType(Status400BadRequest)]
+    public Results<Ok, BadRequest> SetMaxConcurrentDownloads(int Amount)
+    {
+        if (Amount is < 1 or > 64)
+            return TypedResults.BadRequest();
+        Tranga.Settings.SetMaxConcurrentDownloads(Amount);
+        return TypedResults.Ok();
+    }
+
+    /// <summary>
+    /// Sets which kinds of work start first when all worker slots are busy, most important first.
+    /// Categories left out keep their order after the given ones.
+    /// </summary>
+    /// <response code="200"></response>
+    [HttpPatch("TaskPriority")]
+    [ProducesResponseType(Status200OK)]
+    public Ok SetTaskPriority([FromBody]WorkerCategory[] order)
+    {
+        Tranga.Settings.SetTaskPriority(order);
+        return TypedResults.Ok();
+    }
 
     /// <summary>
     /// Sets the time when Libraries are refreshed

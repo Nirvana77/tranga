@@ -15,6 +15,7 @@ namespace API.Workers.PeriodicWorkers;
 public class UpdateMetadataWorker(TimeSpan? interval = null, IEnumerable<BaseWorker>? dependsOn = null)
     : BaseWorkerWithContexts(dependsOn), IPeriodic
 {
+    public override WorkerCategory Category => WorkerCategory.Metadata;
 
     public DateTime LastExecution { get; set; } = DateTime.UnixEpoch;
     public TimeSpan Interval { get; set; } = interval ?? TimeSpan.FromHours(12);

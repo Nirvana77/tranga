@@ -13,6 +13,7 @@ namespace API.Workers.PeriodicWorkers;
 public class UpdateCoversWorker(TimeSpan? interval = null, IEnumerable<BaseWorker>? dependsOn = null)
     : BaseWorkerWithContexts(dependsOn), IPeriodic
 {
+    public override WorkerCategory Category => WorkerCategory.Covers;
     public DateTime LastExecution { get; set; } = DateTime.UnixEpoch;
     public TimeSpan Interval { get; set; } = interval ?? TimeSpan.FromHours(6);
     

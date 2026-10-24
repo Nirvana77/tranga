@@ -80,22 +80,80 @@ public static class Tranga
             KnownWorkers.Add(worker);
         if (worker is IPeriodic periodic)
         {
-            StartWorker(worker);
+            EnqueueWorker(worker);
             AddPeriodicWorker(worker, periodic);
         }
         else
-            // Callers include API requests (a search queues a cover download per result), so don't
-            // block them while all worker slots are busy; wait for a free slot in the background.
-            _ = StartWorkerWhenSlotFree(worker, RemoveFromKnownWorkers(worker));
+            EnqueueWorker(worker, RemoveFromKnownWorkers(worker));
     }
 
-    private static async Task StartWorkerWhenSlotFree(BaseWorker worker, Action finishedCallback)
+    /// <summary>
+    /// Workers waiting for one of the <see cref="TrangaSettings.MaxConcurrentWorkers"/> slots.
+    /// <see cref="DispatchWorkers"/> starts the best one first: by <see cref="TrangaSettings.TaskPriority"/>,
+    /// then <see cref="BaseWorker.MangaPriority"/>, then in the order they were queued.
+    /// </summary>
+    private static readonly List<(BaseWorker Worker, Action? Callback, long Order)> PendingWorkers = [];
+    private static long _pendingOrder;
+    private static int _startingWorkers;
+    // Catches slots that free up without a callback (e.g. a worker that threw before running)
+    private static readonly Timer DispatchTimer = new(_ => DispatchWorkers(), null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+
+    /// <summary>
+    /// Queues <paramref name="worker"/>. Never blocks the caller: callers include API requests
+    /// (a search queues a cover download per result).
+    /// </summary>
+    private static void EnqueueWorker(BaseWorker worker, Action? finishedCallback = null)
     {
+        lock (PendingWorkers)
+        {
+            if (PendingWorkers.Any(p => p.Worker == worker))
+                return;
+            PendingWorkers.Add((worker, finishedCallback, _pendingOrder++));
+        }
+        Task.Run(DispatchWorkers);
+    }
+
+    /// <summary>
+    /// Starts queued workers while slots are free. Call after a slot frees up or the limits change.
+    /// </summary>
+    internal static void DispatchWorkers()
+    {
+        if (ServiceProvider is null) // not started yet
+            return;
         try
         {
-            while (RunningWorkers.Count > Settings.MaxConcurrentWorkers)
-                await Task.Delay(Settings.WorkCycleTimeoutMs);
-            StartWorker(worker, finishedCallback);
+            foreach ((BaseWorker worker, Task<BaseWorker[]> task) in RunningWorkers.Where(kv => kv.Value.IsFaulted))
+                if (RunningWorkers.TryRemove(worker, out _))
+                    Log.WarnFormat("Removed faulted worker {0}", worker);
+
+            while (true)
+            {
+                (BaseWorker Worker, Action? Callback, long Order) next;
+                lock (PendingWorkers)
+                {
+                    if (RunningWorkers.Count + _startingWorkers >= Settings.MaxConcurrentWorkers)
+                        return;
+                    // A periodic worker can be queued again while its previous run is still going
+                    if (PendingWorkers.Where(p => !RunningWorkers.ContainsKey(p.Worker))
+                            .OrderBy(p => Settings.TaskPriorityRank(p.Worker.Category))
+                            .ThenByDescending(p => p.Worker.MangaPriority)
+                            .ThenBy(p => p.Order)
+                            .FirstOrDefault() is not { Worker: not null } best)
+                        return;
+                    next = best;
+                    PendingWorkers.Remove(next);
+                    _startingWorkers++;
+                }
+                try
+                {
+                    StartWorker(next.Worker, next.Callback);
+                }
+                finally
+                {
+                    lock (PendingWorkers)
+                        _startingWorkers--;
+                }
+            }
         }
         catch (Exception e)
         {
@@ -115,7 +173,7 @@ public static class Tranga
     {
         Log.DebugFormat("Waiting {0} for next run of {1}", periodic.Interval, worker);
         Thread.Sleep(periodic.Interval);
-        StartWorker(worker, RefreshTask(worker, periodic));
+        EnqueueWorker(worker, RefreshTask(worker, periodic));
     });
 
     private static Action RefreshTask(BaseWorker worker, IPeriodic periodic) => () =>
@@ -152,7 +210,7 @@ public static class Tranga
     private static readonly ConcurrentDictionary<BaseWorker, Task<BaseWorker[]>> RunningWorkers = new();
     public static BaseWorker[] GetRunningWorkers() => RunningWorkers.Keys.ToArray();
     
-    internal static void StartWorker(BaseWorker worker, Action? finishedCallback = null)
+    private static void StartWorker(BaseWorker worker, Action? finishedCallback = null)
     {
         Log.DebugFormat("Starting {0}", worker);
         if (ServiceProvider is null)
@@ -161,12 +219,6 @@ public static class Tranga
             return;
         }
         Action afterWorkCallback = DefaultAfterWork(worker, finishedCallback);
-
-        while (RunningWorkers.Count > Settings.MaxConcurrentWorkers)
-        {
-            Log.WarnFormat("{0}: Max worker concurrency reached ({1})! Waiting {2}ms...", worker, Settings.MaxConcurrentWorkers, Settings.WorkCycleTimeoutMs);
-            Thread.Sleep(Settings.WorkCycleTimeoutMs);
-        }
 
         if (worker is BaseWorkerWithContexts withContexts)
         {
@@ -206,6 +258,7 @@ public static class Tranga
             Log.Error(e);
         }
         callback?.Invoke();
+        DispatchWorkers();
     };
 
     internal static void StopWorker(BaseWorker worker)
@@ -215,6 +268,11 @@ public static class Tranga
             PeriodicWorkers.Remove(periodicWorker, out _);
         worker.Cancel();
         RunningWorkers.Remove(worker, out _);
+        lock (PendingWorkers)
+            PendingWorkers.RemoveAll(p => p.Worker == worker);
+        if (worker is not IPeriodic)
+            RemoveFromKnownWorkers(worker)();
+        DispatchWorkers();
     }
     
     internal static async Task<(Manga manga, MangaConnectorId<Manga> id)?> AddMangaToContext(this MangaContext context, (Manga, MangaConnectorId<Manga>) addManga, CancellationToken token) =>

@@ -168,6 +168,9 @@ namespace API.Migrations.Manga
                         .HasMaxLength(8)
                         .HasColumnType("character varying(8)");
 
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
                     b.Property<int>("ReleaseStatus")
                         .HasColumnType("integer");
 

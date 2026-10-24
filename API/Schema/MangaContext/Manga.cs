@@ -27,6 +27,10 @@ public class Manga : Identifiable
     [StringLength(512)] public string? CoverFileNameInCache { get; internal set; }
     public uint? Year { get; internal init; }
     [StringLength(8)] public string? OriginalLanguage { get; internal init; }
+    /// <summary>
+    /// Chapters of higher-priority manga are downloaded first.
+    /// </summary>
+    public MangaPriority Priority { get; internal set; } = MangaPriority.Normal;
     
     
     /// <exception cref="DirectoryNotFoundException">Library not loaded</exception>
@@ -141,6 +145,13 @@ public class Manga : Identifiable
     }
 
     public override string ToString() => $"{base.ToString()} {Name}";
+}
+
+public enum MangaPriority
+{
+    Low = -1,
+    Normal = 0,
+    High = 1
 }
 
 public enum MangaReleaseStatus

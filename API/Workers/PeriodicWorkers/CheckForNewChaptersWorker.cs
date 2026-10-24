@@ -11,6 +11,7 @@ namespace API.Workers.PeriodicWorkers;
 public class CheckForNewChaptersWorker(TimeSpan? interval = null, IEnumerable<BaseWorker>? dependsOn = null)
     : BaseWorkerWithContexts(dependsOn), IPeriodic
 {
+    public override WorkerCategory Category => WorkerCategory.ChapterChecks;
     public DateTime LastExecution { get; set; } = DateTime.UnixEpoch;
     public TimeSpan Interval { get; set; } = interval??Constants.CheckForNewChaptersInterval;
     

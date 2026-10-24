@@ -45,7 +45,7 @@ public class SearchController(MangaContext context) : ControllerBase
         {
             IEnumerable<DTOs.MangaConnectorId<DTOs.Manga>> ids = m.MangaConnectorIds.Select(id =>
                 new DTOs.MangaConnectorId<DTOs.Manga>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
-            return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids);
+            return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids) { Priority = m.Priority };
         });
 
         return TypedResults.Ok(result.ToList());

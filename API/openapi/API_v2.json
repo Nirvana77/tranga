@@ -1468,6 +1468,59 @@
         }
       }
     },
+    "/v2/Manga/{MangaId}/Priority/{Priority}": {
+      "patch": {
+        "tags": [
+          "Manga"
+        ],
+        "summary": "Sets the download priority of API.Controllers.DTOs.Manga with MangaId. Chapters of higher-priority manga are downloaded first.",
+        "parameters": [
+          {
+            "name": "MangaId",
+            "in": "path",
+            "description": "API.Controllers.DTOs.Manga.Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Priority",
+            "in": "path",
+            "description": "Low, Normal or High",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MangaPriority"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "404": {
+            "description": "API.Controllers.DTOs.Manga with MangaId not found",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error during Database Operation",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v2/Manga/{MangaId}/DownloadFrom/{MangaConnectorName}/{IsRequested}": {
       "patch": {
         "tags": [
@@ -3390,6 +3443,145 @@
         }
       }
     },
+    "/v2/Settings/MaxConcurrentWorkers/{Amount}": {
+      "patch": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Sets how many workers (downloads, chapter checks, covers…) may run at the same time",
+        "parameters": [
+          {
+            "name": "Amount",
+            "in": "path",
+            "description": "1 to 64",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "description": "Amount is out of range",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/Settings/MaxConcurrentDownloads/{Amount}": {
+      "patch": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Sets how many chapters may download at the same time. Downloads also take worker slots (API.TrangaSettings.MaxConcurrentWorkers).",
+        "parameters": [
+          {
+            "name": "Amount",
+            "in": "path",
+            "description": "1 to 64",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "description": "Amount is out of range",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/Settings/TaskPriority": {
+      "patch": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Sets which kinds of work start first when all worker slots are busy, most important first.\r\nCategories left out keep their order after the given ones.",
+        "requestBody": {
+          "content": {
+            "application/json-patch+json; x-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkerCategory"
+                }
+              }
+            },
+            "application/json; x-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkerCategory"
+                }
+              }
+            },
+            "text/json; x-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkerCategory"
+                }
+              }
+            },
+            "application/*+json; x-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkerCategory"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/v2/Settings/LibraryRefresh": {
       "patch": {
         "tags": [
@@ -4246,6 +4438,7 @@
           "links",
           "mangaConnectorIds",
           "name",
+          "priority",
           "releaseStatus",
           "tags"
         ],
@@ -4319,6 +4512,9 @@
               "$ref": "#/components/schemas/MangaMangaConnectorId"
             },
             "description": "Ids of the Manga on MangaConnectors"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/MangaPriority"
           },
           "key": {
             "maxLength": 64,
@@ -4419,6 +4615,14 @@
         "additionalProperties": false,
         "description": "API.Controllers.DTOs.MangaConnectorId`1 DTO"
       },
+      "MangaPriority": {
+        "enum": [
+          "Normal",
+          "High",
+          "Low"
+        ],
+        "type": "string"
+      },
       "MangaReleaseStatus": {
         "enum": [
           "Continuing",
@@ -4491,6 +4695,7 @@
           "key",
           "mangaConnectorIds",
           "name",
+          "priority",
           "releaseStatus"
         ],
         "type": "object",
@@ -4514,6 +4719,9 @@
               "$ref": "#/components/schemas/MangaMangaConnectorId"
             },
             "description": "Ids of the Manga on MangaConnectors"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/MangaPriority"
           },
           "key": {
             "maxLength": 64,
@@ -4715,6 +4923,14 @@
             "type": "integer",
             "format": "int32"
           },
+          "taskPriority": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkerCategory"
+            },
+            "description": "Which kinds of work start first when all worker slots are busy, most important first.",
+            "nullable": true
+          },
           "libraryRefreshSetting": {
             "$ref": "#/components/schemas/LibraryRefreshSetting"
           },
@@ -4799,6 +5015,16 @@
         },
         "additionalProperties": false,
         "description": "API.Workers.BaseWorker DTO"
+      },
+      "WorkerCategory": {
+        "enum": [
+          "Downloads",
+          "ChapterChecks",
+          "Covers",
+          "Metadata",
+          "Maintenance"
+        ],
+        "type": "string"
       },
       "WorkerExecutionState": {
         "enum": [

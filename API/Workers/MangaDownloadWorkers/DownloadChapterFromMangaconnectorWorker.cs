@@ -26,9 +26,12 @@ namespace API.Workers.MangaDownloadWorkers;
 public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> chId, IEnumerable<BaseWorker>? dependsOn = null)
     : BaseWorkerWithContexts(dependsOn)
 {
+    public override WorkerCategory Category => WorkerCategory.Downloads;
     public readonly string ChapterIdId = chId.Key;
     private string _description = DescribeChapter(chId);
     public override string Description => _description;
+    private MangaPriority _mangaPriority = chId.Obj?.ParentManga?.Priority ?? MangaPriority.Normal;
+    public override MangaPriority MangaPriority => _mangaPriority;
 
     private static string DescribeChapter(MangaConnectorId<Chapter> chId) =>
         $"Download {chId.Obj?.ParentManga?.Name ?? "chapter"} Ch.{chId.Obj?.ChapterNumber ?? "?"} from {chId.MangaConnectorName}";
@@ -80,6 +83,7 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
         
         Chapter chapter = mangaConnectorId.Obj;
         _description = DescribeChapter(mangaConnectorId);
+        _mangaPriority = chapter.ParentManga.Priority;
         if (chapter.ParentManga.LibraryId is null)
         {
             Log.Info($"Library is not set for {chapter.ParentManga} {chapter}");

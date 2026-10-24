@@ -13,9 +13,12 @@ namespace API.Workers.MangaDownloadWorkers;
 public class DownloadCoverFromMangaconnectorWorker(MangaConnectorId<Manga> mcId, IEnumerable<BaseWorker>? dependsOn = null)
     : BaseWorkerWithContexts(dependsOn)
 {
+    public override WorkerCategory Category => WorkerCategory.Covers;
     private readonly string _mangaConnectorIdId = mcId.Key;
     private string _description = Describe(mcId);
     public override string Description => _description;
+    private MangaPriority _mangaPriority = mcId.Obj?.Priority ?? MangaPriority.Normal;
+    public override MangaPriority MangaPriority => _mangaPriority;
 
     private static string Describe(MangaConnectorId<Manga> mcId) =>
         $"Download cover of {mcId.Obj?.Name ?? "manga"} from {mcId.MangaConnectorName}";
@@ -43,6 +46,7 @@ public class DownloadCoverFromMangaconnectorWorker(MangaConnectorId<Manga> mcId,
             return []; //TODO Exception?
         }
         _description = Describe(mangaConnectorId);
+        _mangaPriority = mangaConnectorId.Obj.Priority;
         if (!Tranga.TryGetMangaConnector(mangaConnectorId.MangaConnectorName, out MangaConnector? mangaConnector))
         {
             Log.Error("Could not get MangaConnector.");

@@ -1,4 +1,5 @@
 using API.Schema;
+using API.Schema.MangaContext;
 using log4net;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -29,6 +30,14 @@ public abstract class BaseWorker : Identifiable
     public int CurrentStep { get; internal set; }
     public int TotalSteps { get; internal set; }
     public string? ProgressDescription { get; internal set; }
+    /// <summary>
+    /// Kind of work, ordered by <see cref="TrangaSettings.TaskPriority"/> when workers wait for a slot.
+    /// </summary>
+    public virtual WorkerCategory Category => WorkerCategory.Maintenance;
+    /// <summary>
+    /// Priority of the manga this worker is about; breaks ties within a <see cref="Category"/>.
+    /// </summary>
+    public virtual MangaPriority MangaPriority => MangaPriority.Normal;
     /// <summary>
     /// What the worker does, for people (e.g. the website's status bar). Defaults to the type name in words.
     /// </summary>
@@ -137,6 +146,22 @@ public abstract class BaseWorker : Identifiable
         }
         return [this];
     }
+}
+
+[JsonConverter(typeof(StringEnumConverter))]
+[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter))]
+public enum WorkerCategory
+{
+    /// <summary>Chapter downloads, and starting them</summary>
+    Downloads,
+    /// <summary>Getting chapter lists from websites</summary>
+    ChapterChecks,
+    /// <summary>Downloading and updating covers</summary>
+    Covers,
+    /// <summary>Metadata from e.g. MyAnimeList</summary>
+    Metadata,
+    /// <summary>Notifications, library refreshes, moving files, cleanups</summary>
+    Maintenance
 }
 
 [JsonConverter(typeof(StringEnumConverter))]
