@@ -3841,6 +3841,7 @@
         "required": [
           "foreignKey",
           "key",
+          "languages",
           "mangaConnectorName",
           "useForDownload"
         ],
@@ -3864,6 +3865,13 @@
           "useForDownload": {
             "type": "boolean",
             "description": "Whether this Link is used for downloads"
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Languages the Connector provides (e.g. [\"it\"] for Mangaworld)"
           },
           "key": {
             "maxLength": 64,
@@ -4359,6 +4367,7 @@
         "required": [
           "foreignKey",
           "key",
+          "languages",
           "mangaConnectorName",
           "useForDownload"
         ],
@@ -4382,6 +4391,13 @@
           "useForDownload": {
             "type": "boolean",
             "description": "Whether this Link is used for downloads"
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Languages the Connector provides (e.g. [\"it\"] for Mangaworld)"
           },
           "key": {
             "maxLength": 64,

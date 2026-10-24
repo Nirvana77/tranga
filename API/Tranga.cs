@@ -76,13 +76,31 @@ public static class Tranga
     public static void AddWorker(BaseWorker worker)
     {
         Log.DebugFormat("Adding Worker {0}", worker);
-        KnownWorkers.Add(worker);
-        if(worker is not IPeriodic)
-            StartWorker(worker, RemoveFromKnownWorkers(worker));
-        else
+        lock (KnownWorkers)
+            KnownWorkers.Add(worker);
+        if (worker is IPeriodic periodic)
+        {
             StartWorker(worker);
-        if(worker is IPeriodic periodic)
             AddPeriodicWorker(worker, periodic);
+        }
+        else
+            // Callers include API requests (a search queues a cover download per result), so don't
+            // block them while all worker slots are busy; wait for a free slot in the background.
+            _ = StartWorkerWhenSlotFree(worker, RemoveFromKnownWorkers(worker));
+    }
+
+    private static async Task StartWorkerWhenSlotFree(BaseWorker worker, Action finishedCallback)
+    {
+        try
+        {
+            while (RunningWorkers.Count > Settings.MaxConcurrentWorkers)
+                await Task.Delay(Settings.WorkCycleTimeoutMs);
+            StartWorker(worker, finishedCallback);
+        }
+        catch (Exception e)
+        {
+            Log.Error(e);
+        }
     }
 
     private static void AddPeriodicWorker(BaseWorker worker, IPeriodic periodic)
@@ -115,7 +133,7 @@ public static class Tranga
 
     private static Action RemoveFromKnownWorkers(BaseWorker worker) => () =>
     {
-        if (KnownWorkers.Contains(worker))
+        lock (KnownWorkers)
             KnownWorkers.Remove(worker);
     };
     
@@ -126,7 +144,11 @@ public static class Tranga
     }
 
     private static readonly HashSet<BaseWorker> KnownWorkers = new();
-    public static BaseWorker[] GetKnownWorkers() =>  KnownWorkers.ToArray();
+    public static BaseWorker[] GetKnownWorkers()
+    {
+        lock (KnownWorkers)
+            return KnownWorkers.ToArray();
+    }
     private static readonly ConcurrentDictionary<BaseWorker, Task<BaseWorker[]>> RunningWorkers = new();
     public static BaseWorker[] GetRunningWorkers() => RunningWorkers.Keys.ToArray();
     

@@ -11,8 +11,11 @@ public class Global : MangaConnector
     public override (Manga, MangaConnectorId<Manga>)[] SearchManga(string mangaSearchName)
     {
         Log.Debug("Searching Manga on all enabled connectors:");
-        //Get all enabled Connectors
-        MangaConnector[] enabledConnectors = Tranga.MangaConnectors.Where(c => c.Enabled && c.Name != "Global").ToArray();
+        //Get all enabled Connectors that provide the download language (others only yield Manga without chapters to download)
+        MangaConnector[] enabledConnectors = Tranga.MangaConnectors
+            .Where(c => c.Enabled && c.Name != "Global")
+            .Where(c => c.SupportedLanguages.Contains(Tranga.Settings.DownloadLanguage, StringComparer.InvariantCultureIgnoreCase))
+            .ToArray();
         Log.Debug(string.Join(", ", enabledConnectors.Select(c => c.Name)));
         
         //Create Task for each MangaConnector to search simultaneously
