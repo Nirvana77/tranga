@@ -1,0 +1,49 @@
+name: Merge main into develop
+
+# main mirrors upstream C9Glax/tranga untouched, so this workflow cannot live on main.
+# workflow_run and schedule are read from the default branch (develop): every push to main
+# runs upstream's "Unit Tests" workflow, whose completion triggers this one.
+on:
+  workflow_run:
+    workflows: [ "Unit Tests", "Docker Image CI main" ]
+    branches: [ "main" ]
+    types: [ completed ]
+  schedule:
+    - cron: "0 * * * *" # fallback in case upstream renames its workflows
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-develop
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v6
+        with:
+          ref: develop
+          fetch-depth: 0
+          # GITHUB_TOKEN cannot push commits that change .github/workflows (e.g. upstream action bumps).
+          # A PAT with Contents + Workflows write stored as SYNC_TOKEN avoids that.
+          token: ${{ secrets.SYNC_TOKEN || github.token }}
+
+      - name: Merge main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          if git merge-base --is-ancestor origin/main HEAD; then
+            echo "develop already contains main."
+            exit 0
+          fi
+          if ! git merge --no-edit origin/main; then
+            git merge --abort
+            echo "::error::Merge conflict between main and develop. Merge main into develop manually."
+            exit 1
+          fi
+          git push origin develop

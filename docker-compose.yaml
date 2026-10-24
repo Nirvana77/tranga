@@ -1,6 +1,8 @@
 services:
   tranga-api:
-    image: glax/tranga-api:latest
+    build:
+      dockerfile: Dockerfile
+      context: .
     container_name: tranga-api
     user: "${UID}:${GID}"
     volumes:
@@ -60,3 +62,14 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
+  kavita:
+    image: jvmilazz0/kavita:latest
+    container_name: kavita
+    ports:
+      - "25600:5000"
+    volumes:
+      - ./Manga:/manga
+      - ./kavita:/kavita/config
+    environment:
+      - TZ=Europe/Stockholm
+    restart: unless-stopped
