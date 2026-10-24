@@ -10,6 +10,17 @@ Tranga is a single ASP.NET Core process (`API/`) that is both a REST API and a b
 
 This checkout is the fork Nirvana77/tranga. `main` mirrors upstream C9Glax/tranga and must stay free of our own commits. All our work goes on `develop`, the fork's default branch. The fork's GitHub workflow `.github/workflows/sync-develop.yml` merges `main` into `develop` after every push to `main`. A daily CronJob in the k8s repo (`k8s/Tranga/prod/50-fork-sync.yaml`) fast-forwards `main` from upstream. Deploying to the cluster: `k8s/Tranga/build.sh` (builds `develop` by default).
 
+### Running in the cluster
+
+Namespace `tranga` on k3s-worker-1; the k8s repo's `Tranga/README.md` has the details.
+- `k8s/Tranga/build.sh` saves a `pg_dumpall` to `~/tranga-backups`, then builds `develop` and swaps only the Deployment's image. Changes to env vars in `prod/30-tranga-api.yaml` need `kubectl set env` (or `kubectl apply`, which resets the image to upstream).
+- FlareSolverr runs as `prod/33-flaresolverr.yaml` at `http://flaresolverr:8191`. Manhuaus needs it.
+- To reach the API: `kubectl -n tranga port-forward svc/tranga-api 16531:6531`, then `http://127.0.0.1:16531/v2/...`.
+- Useful endpoints:
+  - `PATCH /v2/Settings/FlareSolverr/Url` with body `"http://flaresolverr:8191"`; `POST /v2/Settings/FlareSolverr/Test`.
+  - Switch a manga to another source: `GET /v2/Search/<Connector>/<name>` (adds the link to the existing manga when the name matches), then `PATCH /v2/Manga/<key>/DownloadFrom/<Connector>/true` and `.../DownloadFrom/<OldConnector>/false`. `StartNewChapterDownloadsWorker` picks the chapters up within a minute.
+- A manga that finds 0 chapters on MangaDex usually had them removed there (check `https://api.mangadex.org/manga/<id>/feed`), not a tranga bug. Link it to another connector.
+
 ## Commands
 
 Requires the **.NET 10 SDK** (`API` and `Tests` target `net10.0`). With a local SDK:
@@ -107,8 +118,8 @@ Upstream's `.gitignore` has an unanchored `Manga/` rule (meant for the download 
   - `FlareSolverrClearanceDownloadClient` solves the challenge once per site, then sends plain requests with the `cf_clearance` cookie and FlareSolverr's user agent, so images work too. It needs `FLARESOLVERR_URL`. Use it for sites that challenge everything (e.g. Manhuaus).
   - `FlareSolverrDownloadClient` sends every request through FlareSolverr.
   - `ChromiumDownloadClient` uses PuppeteerSharp. `Global` is a meta-connector that fans out searches to all enabled connectors. Connectors are persisted in `MangaContext` with `Name` as the EF discriminator.
-- **Controllers** (`Controllers/`): return DTOs from `Controllers/DTOs` and take request records from `Controllers/Requests`; they don't expose EF entities directly.
-- **Config**: env vars are read in `Constants.cs` (see the README table). User-editable settings live in `TrangaSettings` and are persisted as JSON at `/usr/share/tranga-api/settings.json` on Linux (`%appdata%/tranga-api` on Windows), alongside the cover image cache and logs (log4net, `Log4Net.config.xml`).
+- **Controllers** (`Controllers/`): return DTOs from `Controllers/DTOs` and take request records from `Controllers/Requests`; they don't expose EF entities directly. A controller that creates another controller with `new` must pass `ControllerContext = ControllerContext`; otherwise `HttpContext` is null there (this broke `GET /v2/Manga/{id}/OnMangaConnector/{name}` upstream; fixed on `develop`).
+- **Config**: env vars are read in `Constants.cs` (see the README table). User-editable settings live in `TrangaSettings` and are persisted as JSON at `/usr/share/tranga-api/settings.json` on Linux (`%appdata%/tranga-api` on Windows), alongside the cover image cache and logs (log4net, `Log4Net.config.xml`). `TrangaSettings` is a class on `develop`. Upstream it is a struct in a `static readonly` field, so its setters only changed a copy: `settings.json` was written but the running app kept the old values until a restart. Keep it a class if a merge from upstream conflicts there.
 
 ### Adding a new site connector
 
