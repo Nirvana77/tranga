@@ -30,6 +30,11 @@ Nothing is rebuilt automatically. Run `k8s/Tranga/build.sh` to deploy `develop`.
 - **Global search** only searches websites that offer the download language. Searching one website directly still works for any language.
 - **Download language** can be picked in the web UI's settings. The setting already existed in the API.
 
+### Priorities and limits
+- **Manga priority:** High, Normal or Low, set on the manga page (`PATCH /v2/Manga/{id}/Priority/{p}`, migration `AddMangaPriority`). Chapters of higher-priority manga download first.
+- **Task order:** when all task slots are busy, the next task is picked by kind (chapter downloads, chapter checks, covers, metadata, maintenance), in the order set in the web UI's settings (`PATCH /v2/Settings/TaskPriority`). Ties go to the higher manga priority, then to the task queued first.
+- **Limits:** "tasks at the same time" (`MaxConcurrentWorkers`, default 4) and "chapter downloads at the same time" (`MaxConcurrentDownloads`, default 3; each also takes a task slot) are set in the web UI's settings. Changes apply immediately. Upstream's check let one more task run than the limit; here the limit is exact.
+
 ### Status of running work
 
 `/v2/Worker` entries have a readable `description` (e.g. "Download Frozen Warrior Ch.12 from Manhuaus") and a `periodic` flag. The web UI's status bar is built on these.
@@ -41,6 +46,7 @@ Nothing is rebuilt automatically. Run `k8s/Tranga/build.sh` to deploy `develop`.
 | Settings changed through the API or UI (FlareSolverr URL, download language…) were saved but ignored until a restart. `TrangaSettings` was a struct in a `static readonly` field, so setters changed a copy. | `TrangaSettings` is a class. |
 | "Search on another website" (`GET /v2/Manga/{id}/OnMangaConnector/{name}`) always returned 500. | The inner controller gets the request context. |
 | Searches took minutes while chapters downloaded. Each result queues a cover download, and queuing blocked the request for 20 s whenever all worker slots were busy. | Queued workers wait in the background. Measured: MangaDex search for "The Reaper" went from 308 s to 5 s. |
+| A worker that threw before starting kept its slot forever. | The scheduler frees it. |
 | Upstream's `.gitignore` rule `Manga/` also ignored `API/Migrations/Manga/`. | Anchored as `/Manga/`. |
 
 ## Known behaviour (unchanged from upstream)
