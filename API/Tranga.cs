@@ -106,8 +106,15 @@ public static class Tranga
     {
         lock (PendingWorkers)
         {
-            if (PendingWorkers.Any(p => p.Worker == worker))
+            int pending = PendingWorkers.FindIndex(p => p.Worker == worker);
+            if (pending >= 0)
+            {
+                // A periodic worker's first run has no callback. If it is still waiting for a slot when the next
+                // run is due, keep that run's callback, or nothing schedules the worker again.
+                if (finishedCallback is not null && PendingWorkers[pending].Callback is null)
+                    PendingWorkers[pending] = PendingWorkers[pending] with { Callback = finishedCallback };
                 return;
+            }
             PendingWorkers.Add((worker, finishedCallback, _pendingOrder++));
         }
         Task.Run(DispatchWorkers);
