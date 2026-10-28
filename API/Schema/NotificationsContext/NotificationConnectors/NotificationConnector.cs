@@ -31,7 +31,8 @@ public class NotificationConnector(string name, string url, Dictionary<string, s
     {
         Log.InfoFormat("Sending notification: {0} - {1}", title, notificationText);
         string formattedUrl = FormatStr(Url, title, notificationText);
-        string formattedBody = FormatStr(Body, title, notificationText);
+        // The body is sent as JSON, so quotes or newlines in a manga title must not end the string early
+        string formattedBody = FormatStr(Body, JsonEscape(title), JsonEscape(notificationText));
         Dictionary<string, string> formattedHeaders = Headers.ToDictionary(h => h.Key, 
             h => FormatStr(h.Value, title, notificationText));
 
@@ -43,8 +44,13 @@ public class NotificationConnector(string name, string url, Dictionary<string, s
         Log.DebugFormat("Request: {0}", request);
 
         HttpResponseMessage response = Client.Send(request);
-        Log.DebugFormat("Response status code: {0} {1}", response.StatusCode, response.Content.ReadAsStringAsync().Result);
+        if (!response.IsSuccessStatusCode)
+            Log.WarnFormat("Notification was rejected: {0} {1}", response.StatusCode, response.Content.ReadAsStringAsync().Result);
+        else
+            Log.DebugFormat("Response status code: {0} {1}", response.StatusCode, response.Content.ReadAsStringAsync().Result);
     }
+
+    private static string JsonEscape(string str) => JsonConvert.ToString(str)[1..^1];
 
     private static string FormatStr(string str, string title, string text)
     {

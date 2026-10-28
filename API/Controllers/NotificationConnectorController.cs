@@ -135,8 +135,8 @@ public class NotificationConnectorController(NotificationsContext context) : Con
             Name = createNtfyConnectorRecord.Name,
             Url = $"{createNtfyConnectorRecord.Url}?auth={auth}",
             HttpMethod = "POST",
-            Body = $"{{\"message\": \"%text\", \"title\": \"%title\", \"Priority\": {createNtfyConnectorRecord.Priority} \"Topic\": \"{createNtfyConnectorRecord.Topic}\"}}",
-            Headers = new () {{"Authorization", auth}}
+            Body = $"{{\"message\": \"%text\", \"title\": \"%title\", \"priority\": {createNtfyConnectorRecord.Priority}, \"topic\": \"{createNtfyConnectorRecord.Topic}\"}}",
+            Headers = new () {{"Authorization", authHeader}}
         };
         return await CreateConnector(ntfyConnector);
     }
@@ -158,7 +158,7 @@ public class NotificationConnectorController(NotificationsContext context) : Con
             Name = createPushoverConnectorRecord.Name,
             Url = "https://api.pushover.net/1/messages.json",
             HttpMethod = "POST",
-            Body = $"{{\"token\": \"{createPushoverConnectorRecord.AppToken}\", \"user\": \"{createPushoverConnectorRecord.Username}\", \"message:\":\"%text\", \"%title\" }}",
+            Body = $"{{\"token\": \"{createPushoverConnectorRecord.AppToken}\", \"user\": \"{createPushoverConnectorRecord.Username}\", \"message\": \"%text\", \"title\": \"%title\"}}",
             Headers = new ()
         };
         return await CreateConnector(pushoverConnector);
